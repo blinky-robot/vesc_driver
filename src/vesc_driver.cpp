@@ -87,11 +87,6 @@ namespace vesc_driver
 		  this_name("vesc_driver"),
 		  vescd(-1)
 	{
-		if(ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug))
-		{
-			ros::console::notifyLoggerLevelsChanged();
-		}
-
 		nh_priv.param("baud", baud, VESC::default_baud);
 		nh_priv.param("port", port, VESC::default_port);
 		nh_priv.param("rad_per_tick", rad_per_tick, rad_per_tick);
