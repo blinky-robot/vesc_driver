@@ -215,6 +215,7 @@ int vesc_set_cb_context(const int vescd, void *context);
 int vesc_set_cb_get_config(const int vescd, int (*get_config_cb)(void *context, struct vesc_config *config));
 int vesc_set_cb_get_fw_version(const int vescd, int (*get_fw_version_cb)(void *context, uint8_t major, uint8_t minor));
 int vesc_set_cb_get_values(const int vescd, int (*get_values_cb)(void *context, struct vesc_values *values));
+int vesc_set_rpm(const int vescd, int32_t rpm);
 const char * vesc_strerror(const int error);
 
 #ifdef __cplusplus

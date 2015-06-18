@@ -82,6 +82,7 @@ namespace vesc_driver
 		  dyn_re_srv(NULL),
 		  nh(nh),
 		  nh_priv(nh_priv),
+		  rad_per_tick(1.047197551),
 		  read_thread(NULL),
 		  this_name("vesc_driver"),
 		  vescd(-1)
@@ -93,6 +94,7 @@ namespace vesc_driver
 
 		nh_priv.param("baud", baud, VESC::default_baud);
 		nh_priv.param("port", port, VESC::default_port);
+		nh_priv.param("rad_per_tick", rad_per_tick, rad_per_tick);
 		nh_priv.param("timeout", timeout, VESC::default_timeout);
 
 		diag.setHardwareIDf("VESC on '%s'", port.c_str());
@@ -124,8 +126,43 @@ namespace vesc_driver
 		{
 			vesc_close(vescd);
 			vescd = -1;
-			ROS_INFO_NAMED(this_name, "Disconnected from bus");
+			ROS_INFO_NAMED(this_name, "Disconnected from controller");
 		}
+	}
+
+	void VESC::getStatus(double &velocity, double &position)
+	{
+		int ret;
+
+		if (!VESC::stat())
+		{
+			VESC::start();
+
+			if (!VESC::stat())
+			{
+				throw Exception(VESC_ERROR_NOT_CONNECTED);
+			}
+		}
+
+		read_values_mutex.lock();
+
+		ret = vesc_request_values(vescd);
+		if (ret != VESC_SUCCESS)
+		{
+			read_values_mutex.unlock();
+			throw Exception((enum VESC_ERROR)ret);
+		}
+
+		if (!read_values_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		{
+			read_values_mutex.unlock();
+			throw Exception(VESC_ERROR_TIMEOUT);
+		}
+
+		position = rad_per_tick * read_values.tachometer;
+		velocity = read_values.rpm * M_PI * 2.0 / 60.0;
+
+		read_values_mutex.unlock();
 	}
 
 	void VESC::open()
@@ -154,7 +191,28 @@ namespace vesc_driver
 		{
 			read_thread = new boost::thread(&VESC::spin, this);
 		}
-		ROS_INFO_NAMED(this_name, "Connected to bus at '%s'", port.c_str());
+		ROS_INFO_NAMED(this_name, "Connected to controller at '%s'", port.c_str());
+	}
+
+	void VESC::setVelocity(double &velocity)
+	{
+		int ret;
+
+		if (!VESC::stat())
+		{
+			VESC::start();
+
+			if (!VESC::stat())
+			{
+				throw Exception(VESC_ERROR_NOT_CONNECTED);
+			}
+		}
+
+		ret = vesc_set_rpm(vescd, (velocity * 60.0 / (2.0 * M_PI)) + 0.5);
+		if (ret != VESC_SUCCESS)
+		{
+			throw Exception((enum VESC_ERROR)ret);
+		}
 	}
 
 	bool VESC::stat()

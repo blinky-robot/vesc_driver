@@ -539,6 +539,23 @@ int vesc_set_cb_get_values(const int vescd, int (*get_values_cb)(void *context, 
 	return VESC_SUCCESS;
 }
 
+#include <stdio.h>
+int vesc_set_rpm(const int vescd, int32_t rpm)
+{
+	uint8_t buf[5] = { VESC_PKT_COMM_SET_RPM };
+
+	if (vescd < 0 || vescd > VESC_MAX_DESCRIPTORS || vescds[vescd] == NULL)
+	{
+		return VESC_ERROR_INVALID_PARAM;
+	}
+
+	*((int32_t *)&buf[1]) = rpm;
+
+	VESC_ENDIAN_SWAP_32_ASSIGN(((int32_t *)&buf[1]));
+
+	return vesc_write_pkt(vescd, buf, 5);
+}
+
 /**
  * Private Functions
  */

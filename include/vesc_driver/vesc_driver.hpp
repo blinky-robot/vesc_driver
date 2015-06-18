@@ -51,7 +51,9 @@ namespace vesc_driver
 		~VESC();
 
 		void close();
+		void getStatus(double &velocity, double &position);
 		void open();
+		void setVelocity(double &velocity);
 		void start();
 		bool stat();
 		void stop();
@@ -87,6 +89,7 @@ namespace vesc_driver
 		const ros::NodeHandle nh;
 		const ros::NodeHandle nh_priv;
 		std::string port;
+		double rad_per_tick;
 		uint8_t read_fw_version_major;
 		uint8_t read_fw_version_minor;
 		boost::timed_mutex read_fw_version_mutex;

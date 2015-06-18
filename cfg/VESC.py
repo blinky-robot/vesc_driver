@@ -65,18 +65,4 @@ gen.add("cc_gain",		double_t,	0,	"Current control gain",	0.0046,	0.0,	50.0);
 gen.add("cc_ramp_step_max",	double_t,	0,	"Current control maximum ramp step (at 1000 Hz)",	0.04,	0.0,	50.0);
 gen.add("m_fault_stop_time_ms",	int_t,		0,	"Fault stop timeout (in milliseconds)",	3000,	-1,	40000000);
 
-# TO BE REMOVED
-gen.add("min_angle_limit",	int_t,	0,	"Minimum Angle Limit",		0,	0,	1023);
-gen.add("max_angle_limit",	int_t,	0,	"Maximum Angle Limit",		1023,	0,	1023);
-gen.add("limit_temperature",	int_t,	0,	"Temperature Limit",		0,	0,	255);
-gen.add("max_limit_voltage",	int_t,	0,	"Maximum Voltage Limit",	0,	0,	255);
-gen.add("min_limit_voltage",	int_t,	0,	"Minimum Voltage Limit",	0,	0,	255);
-gen.add("max_torque",		int_t,	0,	"Maximum Torque",		0,	0,	1023);
-gen.add("compliance_p",		int_t,	0,	"Proportional Gain",		0,	0,	255);
-gen.add("compliance_d",		int_t,	0,	"Derivative Gain",		0,	0,	255);
-gen.add("compliance_i",		int_t,	0,	"Integral Gain",		0,	0,	255);
-gen.add("imax",			int_t,	0,	"Maximum Integral Value",	0,	0,	255);
-gen.add("rad_offset",	double_t,	0,	"Radians center offset",	-1.890499397,	-3.780,	0);
-gen.add("rad_per_tick",	double_t,	0,	"Radians per servo tick",	-0.003695991,	-0.005,	-0.001);
-
 exit(gen.generate("vesc_driver", "vesc_driver", "VESC"))
