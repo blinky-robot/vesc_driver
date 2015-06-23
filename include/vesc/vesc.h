@@ -225,6 +225,7 @@ int vesc_set_cb_set_config(const int vescd, int (*set_config_cb)(void *context))
 int vesc_set_config(const int vescd, const struct vesc_config *config);
 int vesc_set_rpm(const int vescd, int32_t rpm);
 const char * vesc_strerror(const int error);
+const char * vesc_strfault(const enum VESC_FAULT_CODE fault);
 
 #ifdef __cplusplus
 }

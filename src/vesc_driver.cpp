@@ -599,7 +599,7 @@ namespace vesc_driver
 			stat.add("Watt-Hours Charged", read_values.watt_hours_charged / 10000.0);
 			stat.add("Tachometer Value", read_values.tachometer);
 			stat.add("Tachometer Absolute Value", read_values.tachometer_abs);
-			stat.add("Fault Code", (int)read_values.fault_code);
+			stat.addf("Fault Code", "%s (%d)", vesc_strfault((enum VESC_FAULT_CODE)read_values.fault_code), (int)read_values.fault_code);
 			stat.addf("Firmware Version", "%hhu.%hhu", read_fw_version_major, read_fw_version_minor);
 
 			if (read_values.fault_code == VESC_FAULT_CODE_NONE)

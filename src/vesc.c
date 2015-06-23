@@ -984,3 +984,26 @@ static int vesc_write_pkt(const int vescd, const uint8_t *msg, const unsigned in
 	return VESC_SUCCESS;
 }
 
+const char * vesc_strfault(const enum VESC_FAULT_CODE fault)
+{
+	switch(fault)
+	{
+	case VESC_FAULT_CODE_NONE:
+		return "No fault";
+	case VESC_FAULT_CODE_OVER_VOLTAGE:
+		return "Over-voltage fault";
+	case VESC_FAULT_CODE_UNDER_VOLTAGE:
+		return "Under-voltage fault";
+	case VESC_FAULT_CODE_DRV8302:
+		return "DRV8302 fault";
+	case VESC_FAULT_CODE_ABS_OVER_CURRENT:
+		return "Absolute maximum current fault";
+	case VESC_FAULT_CODE_OVER_TEMP_FET:
+		return "FET maximum temperature fault";
+	case VESC_FAULT_CODE_OVER_TEMP_MOTOR:
+		return "Motor maximum temperature fault";
+	default:
+		return "Unknown fault";
+	}
+}
+
