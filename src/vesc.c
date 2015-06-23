@@ -59,6 +59,7 @@ struct vesc_callbacks
 	int (*get_config)(void *context, struct vesc_config *config);
 	int (*get_fw_version)(void *context, uint8_t major, uint8_t minor);
 	int (*get_values)(void *context, struct vesc_values *values);
+	int (*set_config)(void *context);
 };
 
 struct vesc_priv
@@ -539,6 +540,72 @@ int vesc_set_cb_get_values(const int vescd, int (*get_values_cb)(void *context, 
 	return VESC_SUCCESS;
 }
 
+int vesc_set_cb_set_config(const int vescd, int (*set_config_cb)(void *context))
+{
+	if (vescd < 0 || vescd > VESC_MAX_DESCRIPTORS || vescds[vescd] == NULL)
+	{
+		return VESC_ERROR_INVALID_PARAM;
+	}
+
+	vescds[vescd]->cb.set_config = set_config_cb;
+
+	return VESC_SUCCESS;
+}
+
+int vesc_set_config(const int vescd, const struct vesc_config *config)
+{
+	uint8_t buf[1 + sizeof(struct vesc_config)] = { VESC_PKT_COMM_SET_MCCONF };
+	struct vesc_config *temp = (struct vesc_config *)&buf[1];
+
+	if (vescd < 0 || vescd > VESC_MAX_DESCRIPTORS || vescds[vescd] == NULL)
+	{
+		return VESC_ERROR_INVALID_PARAM;
+	}
+
+	*temp = *config;
+
+	// Endian Swap
+	temp->l_current_max = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_current_max);
+	temp->l_current_min = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_current_min);
+	temp->l_in_current_max = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_in_current_max);
+	temp->l_in_current_min = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_in_current_min);
+	temp->l_abs_current_max = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_abs_current_max);
+	temp->l_min_erpm = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_min_erpm);
+	temp->l_max_erpm = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_max_erpm);
+	temp->l_max_erpm_fbrake = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_max_erpm_fbrake);
+	temp->l_max_erpm_fbrake_cc = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_max_erpm_fbrake_cc);
+	temp->l_min_vin = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_min_vin);
+	temp->l_max_vin = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_max_vin);
+	temp->l_temp_fet_start = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_temp_fet_start);
+	temp->l_temp_fet_end = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_temp_fet_end);
+	temp->l_temp_motor_start = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_temp_motor_start);
+	temp->l_temp_motor_end = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_temp_motor_end);
+	temp->l_min_duty = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_min_duty);
+	temp->l_max_duty = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->l_max_duty);
+	temp->sl_min_erpm = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_min_erpm);
+	temp->sl_min_erpm_cycle_int_limit = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_min_erpm_cycle_int_limit);
+	temp->sl_max_fullbreak_current_dir_change = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_max_fullbreak_current_dir_change);
+	temp->sl_cycle_int_limit = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_cycle_int_limit);
+	temp->sl_phase_advance_at_br = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_phase_advance_at_br);
+	temp->sl_cycle_int_rpm_br = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_cycle_int_rpm_br);
+	temp->sl_bemf_coupling_k = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->sl_bemf_coupling_k);
+	temp->hall_sl_erpm = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->hall_sl_erpm);
+	temp->s_pid_kp = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->s_pid_kp);
+	temp->s_pid_ki = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->s_pid_ki);
+	temp->s_pid_kd = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->s_pid_kd);
+	temp->s_pid_min_rpm = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->s_pid_min_rpm);
+	temp->p_pid_kp = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->p_pid_kp);
+	temp->p_pid_ki = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->p_pid_ki);
+	temp->p_pid_kd = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->p_pid_kd);
+	temp->cc_startup_boost_duty = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->cc_startup_boost_duty);
+	temp->cc_min_current = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->cc_min_current);
+	temp->cc_gain = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->cc_gain);
+	temp->cc_ramp_step_max = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->cc_ramp_step_max);
+	temp->m_fault_stop_time_ms = VESC_ENDIAN_SWAP_32((uint32_t *)&temp->m_fault_stop_time_ms);
+
+	return vesc_write_pkt(vescd, buf, 1 + sizeof(struct vesc_config));
+}
+
 int vesc_set_rpm(const int vescd, int32_t rpm)
 {
 	uint8_t buf[5] = { VESC_PKT_COMM_SET_RPM };
@@ -806,6 +873,17 @@ static int vesc_process_pkt(const int vescd)
 			}
 
 			return ret;
+		}
+		break;
+	case VESC_PKT_COMM_SET_MCCONF:
+		if (rx_buf->pkt_len != 1)
+		{
+			return VESC_ERROR_INVALID_RESPONSE;
+		}
+
+		if (cb->set_config != NULL)
+		{
+			return cb->set_config(cb->context);
 		}
 		break;
 	default:

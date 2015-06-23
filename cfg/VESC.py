@@ -36,7 +36,7 @@ gen.add("l_abs_current_max",	double_t,	0,	"Absolute maximum current",	130.0,	0.0
 gen.add("l_min_erpm",		double_t,	0,	"Minimum ERPM",			-100000.0,	-200000.0,	0.0);
 gen.add("l_max_erpm",		double_t,	0,	"Maximum ERPM",			100000.0,	0.0,	200000.0);
 gen.add("l_max_erpm_fbrake",	double_t,	0,	"Maximum ERPM at full brake",	300.00,	0.0,	100000.0);
-gen.add("l_max_erpm_fbrake_CC",	double_t,	0,	"Maximum ERPM at full brake in current control mode",	1500.00,	0.0,	100000.0);
+gen.add("l_max_erpm_fbrake_cc",	double_t,	0,	"Maximum ERPM at full brake in current control mode",	1500.00,	0.0,	100000.0);
 gen.add("l_min_vin",		double_t,	0,	"Minimum input voltage",	8.0,	6.0,	60.0);
 gen.add("l_max_vin",		double_t,	0,	"Maximum input voltage",	8.0,	6.0,	60.0);
 gen.add("l_slow_abs_current",	bool_t,		0,	"Slow absolute maximum current",	True);

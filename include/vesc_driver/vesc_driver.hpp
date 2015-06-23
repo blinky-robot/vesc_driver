@@ -64,11 +64,13 @@ namespace vesc_driver
 		static const int default_timeout;
 
 	private:
+		static void configToDynRe(struct vesc_driver::VESCConfig &dyn_re_cfg, const struct vesc_config &vesc_cfg);
 		void diagTimerCallback(const ros::TimerEvent &event);
 		void dynReCallback(vesc_driver::VESCConfig &config, uint32_t level);
 		vesc_driver::VESCConfig getConfig();
 		void mergeSettings();
 		void queryDiagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat);
+		static inline double roundDouble(const double x);
 		void spin();
 		void spinOnce();
 
@@ -78,6 +80,8 @@ namespace vesc_driver
 		int getFwVersionCallback(uint8_t major, uint8_t minor);
 		friend int getValuesCallbackWrapper(void *context, struct vesc_values *values);
 		int getValuesCallback(struct vesc_values *values);
+		friend int setConfigCallbackWrapper(void *context);
+		int setConfigCallback();
 
 		bool active;
 		int baud;
@@ -102,6 +106,7 @@ namespace vesc_driver
 		const std::string this_name;
 		int timeout;
 		int vescd;
+		boost::timed_mutex write_config_mutex;
 	};
 }
 

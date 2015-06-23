@@ -67,6 +67,16 @@ namespace vesc_driver
 		return ((class VESC *)context)->getValuesCallback(values);
 	}
 
+	int setConfigCallbackWrapper(void *context)
+	{
+		if (context == NULL)
+		{
+			return VESC_ERROR_INVALID_PARAM;
+		}
+
+		return ((class VESC *)context)->setConfigCallback();
+	}
+
 	/**
 	 * Public Functions
 	 */
@@ -219,6 +229,7 @@ namespace vesc_driver
 		vesc_set_cb_get_config(vescd, getConfigCallbackWrapper);
 		vesc_set_cb_get_fw_version(vescd, getFwVersionCallbackWrapper);
 		vesc_set_cb_get_values(vescd, getValuesCallbackWrapper);
+		vesc_set_cb_set_config(vescd, setConfigCallbackWrapper);
 
 		if (read_thread == NULL)
 		{
@@ -318,6 +329,61 @@ namespace vesc_driver
 	/**
 	 * Private Functions
 	 */
+	void VESC::configToDynRe(struct vesc_driver::VESCConfig &dyn_re_cfg, const struct vesc_config &vesc_cfg)
+	{
+		dyn_re_cfg.pwm_mode = vesc_cfg.pwm_mode;
+		dyn_re_cfg.comm_mode = vesc_cfg.comm_mode;
+		dyn_re_cfg.motor_type = vesc_cfg.motor_type;
+		dyn_re_cfg.sensor_mode = vesc_cfg.sensor_mode;
+		dyn_re_cfg.l_current_max = vesc_cfg.l_current_max / 1000.0;
+		dyn_re_cfg.l_current_min = vesc_cfg.l_current_min / 1000.0;
+		dyn_re_cfg.l_in_current_max = vesc_cfg.l_in_current_max / 1000.0;
+		dyn_re_cfg.l_in_current_min = vesc_cfg.l_in_current_min / 1000.0;
+		dyn_re_cfg.l_abs_current_max = vesc_cfg.l_abs_current_max / 1000.0;
+		dyn_re_cfg.l_min_erpm = vesc_cfg.l_min_erpm / 1000.0;
+		dyn_re_cfg.l_max_erpm = vesc_cfg.l_max_erpm / 1000.0;
+		dyn_re_cfg.l_max_erpm_fbrake = vesc_cfg.l_max_erpm_fbrake / 1000.0;
+		dyn_re_cfg.l_max_erpm_fbrake_cc = vesc_cfg.l_max_erpm_fbrake_cc / 1000.0;
+		dyn_re_cfg.l_min_vin = vesc_cfg.l_min_vin / 1000.0;
+		dyn_re_cfg.l_max_vin = vesc_cfg.l_max_vin / 1000.0;
+		dyn_re_cfg.l_slow_abs_current = vesc_cfg.l_slow_abs_current;
+		dyn_re_cfg.l_rpm_lim_neg_torque = vesc_cfg.l_rpm_lim_neg_torque;
+		dyn_re_cfg.l_temp_fet_start = vesc_cfg.l_temp_fet_start / 1000.0;
+		dyn_re_cfg.l_temp_fet_end = vesc_cfg.l_temp_fet_end / 1000.0;
+		dyn_re_cfg.l_temp_motor_start = vesc_cfg.l_temp_motor_start / 1000.0;
+		dyn_re_cfg.l_temp_motor_end = vesc_cfg.l_temp_motor_end / 1000.0;
+		dyn_re_cfg.l_min_duty = vesc_cfg.l_min_duty / 1000000.0;
+		dyn_re_cfg.l_max_duty = vesc_cfg.l_max_duty / 1000000.0;
+		dyn_re_cfg.sl_min_erpm = vesc_cfg.sl_min_erpm / 1000.0;
+		dyn_re_cfg.sl_min_erpm_cycle_int_limit = vesc_cfg.sl_min_erpm_cycle_int_limit / 1000.0;
+		dyn_re_cfg.sl_max_fullbreak_current_dir_change = vesc_cfg.sl_max_fullbreak_current_dir_change / 1000.0;
+		dyn_re_cfg.sl_cycle_int_limit = vesc_cfg.sl_cycle_int_limit / 1000.0;
+		dyn_re_cfg.sl_phase_advance_at_br = vesc_cfg.sl_phase_advance_at_br / 1000.0;
+		dyn_re_cfg.sl_cycle_int_rpm_br = vesc_cfg.sl_cycle_int_rpm_br / 1000.0;
+		dyn_re_cfg.sl_bemf_coupling_k = vesc_cfg.sl_bemf_coupling_k / 1000.0;
+		dyn_re_cfg.hall_table_0 = vesc_cfg.hall_table[0];
+		dyn_re_cfg.hall_table_1 = vesc_cfg.hall_table[1];
+		dyn_re_cfg.hall_table_2 = vesc_cfg.hall_table[2];
+		dyn_re_cfg.hall_table_3 = vesc_cfg.hall_table[3];
+		dyn_re_cfg.hall_table_4 = vesc_cfg.hall_table[4];
+		dyn_re_cfg.hall_table_5 = vesc_cfg.hall_table[5];
+		dyn_re_cfg.hall_table_6 = vesc_cfg.hall_table[6];
+		dyn_re_cfg.hall_table_7 = vesc_cfg.hall_table[7];
+		dyn_re_cfg.hall_sl_erpm = vesc_cfg.hall_sl_erpm / 1000.0;
+		dyn_re_cfg.s_pid_kp = vesc_cfg.s_pid_kp / 1000000.0;
+		dyn_re_cfg.s_pid_ki = vesc_cfg.s_pid_ki / 1000000.0;
+		dyn_re_cfg.s_pid_kd = vesc_cfg.s_pid_kd / 1000000.0;
+		dyn_re_cfg.s_pid_min_rpm = vesc_cfg.s_pid_min_rpm / 1000.0;
+		dyn_re_cfg.p_pid_kp = vesc_cfg.p_pid_kp / 1000000.0;
+		dyn_re_cfg.p_pid_ki = vesc_cfg.p_pid_ki / 1000000.0;
+		dyn_re_cfg.p_pid_kd = vesc_cfg.p_pid_kd / 1000000.0;
+		dyn_re_cfg.cc_startup_boost_duty = vesc_cfg.cc_startup_boost_duty / 1000000.0;
+		dyn_re_cfg.cc_min_current = vesc_cfg.cc_min_current / 1000.0;
+		dyn_re_cfg.cc_gain = vesc_cfg.cc_gain / 1000000.0;
+		dyn_re_cfg.cc_ramp_step_max = vesc_cfg.cc_ramp_step_max / 1000000.0;
+		dyn_re_cfg.m_fault_stop_time_ms = vesc_cfg.m_fault_stop_time_ms;
+	}
+
 	void VESC::diagTimerCallback(const ros::TimerEvent &event)
 	{
 		try
@@ -336,29 +402,87 @@ namespace vesc_driver
 
 	void VESC::dynReCallback(vesc_driver::VESCConfig &config, uint32_t level)
 	{
-		//int ret;
+		int ret;
 
 		ROS_DEBUG_NAMED(this_name, "Dynamic Reconfigure Callback");
 
-		/*last_settings.min_angle_limit = config.min_angle_limit;
-		last_settings.max_angle_limit = config.max_angle_limit;
-		last_settings.limit_temperature = config.limit_temperature;
-		last_settings.max_limit_voltage = config.max_limit_voltage;
-		last_settings.min_limit_voltage = config.min_limit_voltage;
-		last_settings.max_torque = config.max_torque;
-		last_settings.compliance_p = config.compliance_p;
-		last_settings.compliance_d = config.compliance_d;
-		last_settings.compliance_i = config.compliance_i;
-		last_settings.imax = config.imax;
+		boost::timed_mutex::scoped_lock lock(read_config_mutex);
 
-		rad_offset = config.rad_offset;
-		rad_per_tick = config.rad_per_tick;*/
+		read_config.pwm_mode = config.pwm_mode;
+		read_config.comm_mode = config.comm_mode;
+		read_config.motor_type = config.motor_type;
+		read_config.sensor_mode = config.sensor_mode;
+		read_config.l_current_max = roundDouble(config.l_current_max * 1000.0);
+		read_config.l_current_min = roundDouble(config.l_current_min * 1000.0);
+		read_config.l_in_current_max = roundDouble(config.l_in_current_max * 1000.0);
+		read_config.l_in_current_min = roundDouble(config.l_in_current_min * 1000.0);
+		read_config.l_abs_current_max = roundDouble(config.l_abs_current_max * 1000.0);
+		read_config.l_min_erpm = roundDouble(config.l_min_erpm * 1000.0);
+		read_config.l_max_erpm = roundDouble(config.l_max_erpm * 1000.0);
+		read_config.l_max_erpm_fbrake = roundDouble(config.l_max_erpm_fbrake * 1000.0);
+		read_config.l_max_erpm_fbrake_cc = roundDouble(config.l_max_erpm_fbrake_cc * 1000.0);
+		read_config.l_min_vin = roundDouble(config.l_min_vin * 1000.0);
+		read_config.l_max_vin = roundDouble(config.l_max_vin * 1000.0);
+		read_config.l_slow_abs_current = config.l_slow_abs_current;
+		read_config.l_rpm_lim_neg_torque = config.l_rpm_lim_neg_torque;
+		read_config.l_temp_fet_start = roundDouble(config.l_temp_fet_start * 1000.0);
+		read_config.l_temp_fet_end = roundDouble(config.l_temp_fet_end * 1000.0);
+		read_config.l_temp_motor_start = roundDouble(config.l_temp_motor_start * 1000.0);
+		read_config.l_temp_motor_end = roundDouble(config.l_temp_motor_end * 1000.0);
+		read_config.l_min_duty = roundDouble(config.l_min_duty * 1000000.0);
+		read_config.l_max_duty = roundDouble(config.l_max_duty * 1000000.0);
+		read_config.sl_min_erpm = roundDouble(config.sl_min_erpm * 1000.0);
+		read_config.sl_min_erpm_cycle_int_limit = roundDouble(config.sl_min_erpm_cycle_int_limit * 1000.0);
+		read_config.sl_max_fullbreak_current_dir_change = roundDouble(config.sl_max_fullbreak_current_dir_change * 1000.0);
+		read_config.sl_cycle_int_limit = roundDouble(config.sl_cycle_int_limit * 1000.0);
+		read_config.sl_phase_advance_at_br = roundDouble(config.sl_phase_advance_at_br * 1000.0);
+		read_config.sl_cycle_int_rpm_br = roundDouble(config.sl_cycle_int_rpm_br * 1000.0);
+		read_config.sl_bemf_coupling_k = roundDouble(config.sl_bemf_coupling_k * 1000.0);
+		read_config.hall_table[0] = config.hall_table_0;
+		read_config.hall_table[1] = config.hall_table_1;
+		read_config.hall_table[2] = config.hall_table_2;
+		read_config.hall_table[3] = config.hall_table_3;
+		read_config.hall_table[4] = config.hall_table_4;
+		read_config.hall_table[5] = config.hall_table_5;
+		read_config.hall_table[6] = config.hall_table_6;
+		read_config.hall_table[7] = config.hall_table_7;
+		read_config.hall_sl_erpm = roundDouble(config.hall_sl_erpm * 1000.0);
+		read_config.s_pid_kp = roundDouble(config.s_pid_kp * 1000000.0);
+		read_config.s_pid_ki = roundDouble(config.s_pid_ki * 1000000.0);
+		read_config.s_pid_kd = roundDouble(config.s_pid_kd * 1000000.0);
+		read_config.s_pid_min_rpm = roundDouble(config.s_pid_min_rpm * 1000.0);
+		read_config.p_pid_kp = roundDouble(config.p_pid_kp * 1000000.0);
+		read_config.p_pid_ki = roundDouble(config.p_pid_ki * 1000000.0);
+		read_config.p_pid_kd = roundDouble(config.p_pid_kd * 1000000.0);
+		read_config.cc_startup_boost_duty = roundDouble(config.cc_startup_boost_duty * 1000000.0);
+		read_config.cc_min_current = roundDouble(config.cc_min_current * 1000.0);
+		read_config.cc_gain = roundDouble(config.cc_gain * 1000000.0);
+		read_config.cc_ramp_step_max = roundDouble(config.cc_ramp_step_max * 1000000.0);
+		read_config.m_fault_stop_time_ms = config.m_fault_stop_time_ms;
 
-		//ret = sc_write_settings(parent->vescd, id, &last_settings);
-		//if (ret != VESC_SUCCESS)
-		//{
-		//	ROS_ERROR_NAMED(this_name, "Failed to update VESC settings: %s", vesc_strerror(ret));
-		//}
+		// Write the config back so the precision matches
+		configToDynRe(config, read_config);
+
+		write_config_mutex.lock();
+
+		ret = vesc_set_config(vescd, &read_config);
+		if (ret != VESC_SUCCESS)
+		{
+			write_config_mutex.unlock();
+			ROS_ERROR_NAMED(this_name, "Failed to update VESC configuration: %s", vesc_strerror(ret));
+			return;
+		}
+
+		if (!write_config_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		{
+			write_config_mutex.unlock();
+			ROS_ERROR_NAMED(this_name, "Timeout updating VESC configuration");
+			return;
+		}
+
+		write_config_mutex.unlock();
+
+		ROS_DEBUG_NAMED(this_name, "Configuration written successfully");
 	}
 
 	vesc_driver::VESCConfig VESC::getConfig()
@@ -381,16 +505,7 @@ namespace vesc_driver
 			throw Exception(VESC_ERROR_TIMEOUT);
 		}
 
-		/*cfg.min_angle_limit = last_settings.min_angle_limit;
-		cfg.max_angle_limit = last_settings.max_angle_limit;
-		cfg.limit_temperature = last_settings.limit_temperature;
-		cfg.max_limit_voltage = last_settings.max_limit_voltage;
-		cfg.min_limit_voltage = last_settings.min_limit_voltage;
-		cfg.max_torque = last_settings.max_torque;
-		cfg.compliance_p = last_settings.compliance_p;
-		cfg.compliance_d = last_settings.compliance_d;
-		cfg.compliance_i = last_settings.compliance_i;
-		cfg.imax = last_settings.imax;*/
+		configToDynRe(cfg, read_config);
 
 		read_config_mutex.unlock();
 
@@ -507,6 +622,11 @@ namespace vesc_driver
 		}
 	}
 
+	inline double VESC::roundDouble(const double x)
+	{
+		return x < 0.0 ? ceil(x - 0.5) : floor(x + 0.5);
+	}
+
 	void VESC::spin()
 	{
 		while (ros::ok())
@@ -557,6 +677,13 @@ namespace vesc_driver
 		read_values = *values;
 
 		read_values_mutex.unlock();
+
+		return VESC_SUCCESS;
+	}
+
+	int VESC::setConfigCallback()
+	{
+		write_config_mutex.unlock();
 
 		return VESC_SUCCESS;
 	}
