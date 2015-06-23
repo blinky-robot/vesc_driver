@@ -40,13 +40,11 @@ add_library(vesc src/vesc.c)
 add_library(vesc_driver src/vesc_driver.cpp)
 
 add_executable(vesc_node src/vesc_node.cpp)
-add_executable(vesc_test src/vesc_test.cpp)
 
 add_dependencies(vesc_driver ${PROJECT_NAME}_gencfg)
 
 target_link_libraries(vesc_driver vesc ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 target_link_libraries(vesc_node vesc_driver ${catkin_LIBRARIES})
-target_link_libraries(vesc_test vesc_driver)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
