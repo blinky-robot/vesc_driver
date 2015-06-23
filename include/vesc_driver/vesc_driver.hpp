@@ -51,6 +51,7 @@ namespace vesc_driver
 		~VESC();
 
 		void close();
+		void getFwVersion(uint8_t &major, uint8_t &minor);
 		void getStatus(double &velocity, double &position);
 		void open();
 		void setVelocity(double &velocity);

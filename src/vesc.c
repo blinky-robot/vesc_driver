@@ -539,7 +539,6 @@ int vesc_set_cb_get_values(const int vescd, int (*get_values_cb)(void *context, 
 	return VESC_SUCCESS;
 }
 
-#include <stdio.h>
 int vesc_set_rpm(const int vescd, int32_t rpm)
 {
 	uint8_t buf[5] = { VESC_PKT_COMM_SET_RPM };
@@ -785,6 +784,7 @@ static int vesc_process_pkt(const int vescd)
 			conf->sl_phase_advance_at_br = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->sl_phase_advance_at_br);
 			conf->sl_cycle_int_rpm_br = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->sl_cycle_int_rpm_br);
 			conf->sl_bemf_coupling_k = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->sl_bemf_coupling_k);
+			conf->hall_sl_erpm = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->hall_sl_erpm);
 			conf->s_pid_kp = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->s_pid_kp);
 			conf->s_pid_ki = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->s_pid_ki);
 			conf->s_pid_kd = VESC_ENDIAN_SWAP_32((uint32_t *)&conf->s_pid_kd);

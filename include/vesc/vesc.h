@@ -35,10 +35,39 @@
 extern "C" {
 #endif
 
+enum VESC_APP
+{
+	VESC_APP_NONE = 0,
+	VESC_APP_PPM,
+	VESC_APP_ADC,
+	VESC_APP_UART,
+	VESC_APP_PPM_UART,
+	VESC_APP_ADC_UART,
+	VESC_APP_NUNCHUK,
+	VESC_APP_NRF,
+	VESC_APP_CUSTOM,
+};
+
 enum VESC_BAUD
 {
 	VESC_BAUD_115200 = 0,
 	VESC_BAUD_MAX
+};
+
+enum VESC_COMM_MODE
+{
+	VESC_COMM_MODE_INTEGRATE = 0,
+	VESC_COMM_MODE_DELAY,
+};
+
+enum VESC_CONTROL_MODE
+{
+	VESC_CONTROL_MODE_DUTY = 0,
+	VESC_CONTROL_MODE_SPEED,
+	VESC_CONTROL_MODE_CURRENT,
+	VESC_CONTROL_MODE_CURRENT_BRAKE,
+	VESC_CONTROL_MODE_POS,
+	VESC_CONTROL_MODE_NONE,
 };
 
 enum VESC_ERROR
@@ -58,33 +87,6 @@ enum VESC_ERROR
 	VESC_ERROR_NOT_CONNECTED = -102,
 };
 
-enum VESC_STATE
-{
-	VESC_STATE_OFF = 0,
-	VESC_STATE_DETECTING,
-	VESC_STATE_RUNNING,
-	VESC_STATE_FULL_BRAKE,
-};
-
-enum VESC_PWM_MODE
-{
-	VESC_PWM_MODE_NONSYNCHRONOUS_HISW = 0,
-	VESC_PWM_MODE_SYNCHRONOUS,
-	VESC_PWM_MODE_BIPOLAR,
-};
-
-enum VESC_COMM_MODE
-{
-	VESC_COMM_MODE_INTEGRATE = 0,
-	VESC_COMM_MODE_DELAY,
-};
-
-enum VESC_MOTOR_TYPE
-{
-	VESC_MOTOR_TYPE_BLDC = 0,
-	VESC_MOTOR_TYPE_DC,
-};
-
 enum VESC_FAULT_CODE
 {
 	VESC_FAULT_CODE_NONE = 0,
@@ -96,27 +98,10 @@ enum VESC_FAULT_CODE
 	VESC_FAULT_CODE_OVER_TEMP_MOTOR,
 };
 
-enum VESC_CONTROL_MODE
+enum VESC_MOTOR_TYPE
 {
-	VESC_CONTROL_MODE_DUTY = 0,
-	VESC_CONTROL_MODE_SPEED,
-	VESC_CONTROL_MODE_CURRENT,
-	VESC_CONTROL_MODE_CURRENT_BRAKE,
-	VESC_CONTROL_MODE_POS,
-	VESC_CONTROL_MODE_NONE,
-};
-
-enum VESC_APP
-{
-	VESC_APP_NONE = 0,
-	VESC_APP_PPM,
-	VESC_APP_ADC,
-	VESC_APP_UART,
-	VESC_APP_PPM_UART,
-	VESC_APP_ADC_UART,
-	VESC_APP_NUNCHUK,
-	VESC_APP_NRF,
-	VESC_APP_CUSTOM,
+	VESC_MOTOR_TYPE_BLDC = 0,
+	VESC_MOTOR_TYPE_DC,
 };
 
 enum VESC_PPM_CTRL_TYPE{
@@ -129,6 +114,76 @@ enum VESC_PPM_CTRL_TYPE{
 	VESC_PPM_CTRL_TYPE_PID,
 	VESC_PPM_CTRL_TYPE_PID_NOREV,
 };
+
+enum VESC_PWM_MODE
+{
+	VESC_PWM_MODE_NONSYNCHRONOUS_HISW = 0,
+	VESC_PWM_MODE_SYNCHRONOUS,
+	VESC_PWM_MODE_BIPOLAR,
+};
+
+enum VESC_SENSOR_MODE
+{
+	VESC_SENSOR_MODE_SENSORLESS = 0,
+	VESC_SENSOR_MODE_SENSORED,
+	VESC_SENSOR_MODE_HYBRID,
+};
+
+enum VESC_STATE
+{
+	VESC_STATE_OFF = 0,
+	VESC_STATE_DETECTING,
+	VESC_STATE_RUNNING,
+	VESC_STATE_FULL_BRAKE,
+};
+
+struct vesc_config
+{
+	uint8_t pwm_mode;
+	uint8_t comm_mode;
+	uint8_t motor_type;
+	uint8_t sensor_mode;
+	int32_t l_current_max;
+	int32_t l_current_min;
+	int32_t l_in_current_max;
+	int32_t l_in_current_min;
+	int32_t l_abs_current_max;
+	int32_t l_min_erpm;
+	int32_t l_max_erpm;
+	int32_t l_max_erpm_fbrake;
+	int32_t l_max_erpm_fbrake_cc;
+	int32_t l_min_vin;
+	int32_t l_max_vin;
+	uint8_t l_slow_abs_current;
+	uint8_t l_rpm_lim_neg_torque;
+	int32_t l_temp_fet_start;
+	int32_t l_temp_fet_end;
+	int32_t l_temp_motor_start;
+	int32_t l_temp_motor_end;
+	int32_t l_min_duty;
+	int32_t l_max_duty;
+	int32_t sl_min_erpm;
+	int32_t sl_min_erpm_cycle_int_limit;
+	int32_t sl_max_fullbreak_current_dir_change;
+	int32_t sl_cycle_int_limit;
+	int32_t sl_phase_advance_at_br;
+	int32_t sl_cycle_int_rpm_br;
+	int32_t sl_bemf_coupling_k;
+	int8_t hall_table[8];
+	int32_t hall_sl_erpm;
+	int32_t s_pid_kp;
+	int32_t s_pid_ki;
+	int32_t s_pid_kd;
+	int32_t s_pid_min_rpm;
+	int32_t p_pid_kp;
+	int32_t p_pid_ki;
+	int32_t p_pid_kd;
+	int32_t cc_startup_boost_duty;
+	int32_t cc_min_current;
+	int32_t cc_gain;
+	int32_t cc_ramp_step_max;
+	int32_t m_fault_stop_time_ms;
+} __attribute__((packed));
 
 struct vesc_values
 {
@@ -151,55 +206,6 @@ struct vesc_values
 	int32_t tachometer;
 	int32_t tachometer_abs;
 	uint8_t fault_code;
-} __attribute__((packed));
-
-struct vesc_config
-{
-	uint8_t pwm_mode;
-	uint8_t comm_mode;
-	uint8_t motor_type;
-	int32_t l_current_max;
-	int32_t l_current_min;
-	int32_t l_in_current_max;
-	int32_t l_in_current_min;
-	int32_t l_abs_current_max;
-	int32_t l_min_erpm;
-	int32_t l_max_erpm;
-	int32_t l_max_erpm_fbrake;
-	int32_t l_max_erpm_fbrake_cc;
-	int32_t l_min_vin;
-	int32_t l_max_vin;
-	uint8_t l_slow_abs_current;
-	uint8_t l_rpm_lim_neg_torque;
-	int32_t l_temp_fet_start;
-	int32_t l_temp_fet_end;
-	int32_t l_temp_motor_start;
-	int32_t l_temp_motor_end;
-	int32_t l_min_duty;
-	int32_t l_max_duty;
-	uint8_t sl_is_sensorless;
-	int32_t sl_min_erpm;
-	int32_t sl_min_erpm_cycle_int_limit;
-	int32_t sl_max_fullbreak_current_dir_change;
-	int32_t sl_cycle_int_limit;
-	int32_t sl_phase_advance_at_br;
-	int32_t sl_cycle_int_rpm_br;
-	int32_t sl_bemf_coupling_k;
-	int8_t hall_dir;
-	int8_t hall_fwd_add;
-	int8_t hall_rev_add;
-	int32_t s_pid_kp;
-	int32_t s_pid_ki;
-	int32_t s_pid_kd;
-	int32_t s_pid_min_rpm;
-	int32_t p_pid_kp;
-	int32_t p_pid_ki;
-	int32_t p_pid_kd;
-	int32_t cc_startup_boost_duty;
-	int32_t cc_min_current;
-	int32_t cc_gain;
-	int32_t cc_ramp_step_max;
-	int32_t m_fault_stop_time_ms;
 } __attribute__((packed));
 
 /**

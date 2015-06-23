@@ -113,7 +113,10 @@ namespace vesc_driver
 	{
 		boost::recursive_mutex::scoped_lock lock(io_mutex);
 
-		read_thread->interrupt();
+		if (read_thread != NULL)
+		{
+			read_thread->interrupt();
+		}
 		delete read_thread;
 		read_thread = NULL;
 
@@ -123,6 +126,41 @@ namespace vesc_driver
 			vescd = -1;
 			ROS_INFO_NAMED(this_name, "Disconnected from controller");
 		}
+	}
+
+	void VESC::getFwVersion(uint8_t &major, uint8_t &minor)
+	{
+		int ret;
+
+		if (!VESC::stat())
+		{
+			VESC::start();
+
+			if (!VESC::stat())
+			{
+				throw Exception(VESC_ERROR_NOT_CONNECTED);
+			}
+		}
+
+		read_fw_version_mutex.lock();
+
+		ret = vesc_request_fw_version(vescd);
+		if (ret != VESC_SUCCESS)
+		{
+			read_fw_version_mutex.unlock();
+			throw Exception((enum VESC_ERROR)ret);
+		}
+
+		if (!read_fw_version_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		{
+			read_fw_version_mutex.unlock();
+			throw Exception(VESC_ERROR_TIMEOUT);
+		}
+
+		major = read_fw_version_major;
+		minor = read_fw_version_minor;
+
+		read_fw_version_mutex.unlock();
 	}
 
 	void VESC::getStatus(double &velocity, double &position)
@@ -232,6 +270,20 @@ namespace vesc_driver
 		{
 			try
 			{
+				uint8_t major;
+				uint8_t minor;
+
+				VESC::getFwVersion(major, minor);
+
+				if (major != 1 || minor != 5)
+				{
+					ROS_ERROR("This driver is not compatible with VESC firmware v%hhu.%hhu. Please load v1.5.", major, minor);
+
+					VESC::close();
+
+					return;
+				}
+
 				VESC::mergeSettings();
 
 				if (dyn_re_srv == NULL)

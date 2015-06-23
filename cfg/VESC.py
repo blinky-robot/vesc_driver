@@ -17,11 +17,17 @@ motor_type_enum = gen.enum([
 	gen.const("BLDC",		int_t,	0,	"Brushless Direct Current"),
 	gen.const("DC",			int_t,	1,	"Brushed Direct Current"),
 	], "Motor Type")
+sensor_mode_enum = gen.enum([
+	gen.const("Sensorless",		int_t,	0,	"Sensorless Mode"),
+	gen.const("Sensored",		int_t,	1,	"Sensored Mode"),
+	gen.const("Hybrid",		int_t,	2,	"Hybrid Sensored/Sensorless Mode"),
+	], "Sensor Mode")
 
 # VESC Config
 gen.add("pwm_mode",		int_t,		0,	"PWM Mode",			0,	0,	2,	edit_method=pwm_mode_enum);
 gen.add("comm_mode",		int_t,		0,	"Commutation Mode",		0,	0,	1,	edit_method=comm_mode_enum);
 gen.add("motor_type",		int_t,		0,	"Motor Type",			0,	0,	1,	edit_method=motor_type_enum);
+gen.add("sensor_mode",		int_t,		0,	"Sensor Mode",			0,	0,	2,	edit_method=sensor_mode_enum);
 gen.add("l_current_max",	double_t,	0,	"Maximum motor current",	60.0,	0.0,	200.0);
 gen.add("l_current_min",	double_t,	0,	"Minimum motor current (regen)",	-60.0,	-200.0,	0.0);
 gen.add("l_in_current_max",	double_t,	0,	"Maximum battery current",	60.0,	0.0,	200.0);
@@ -41,7 +47,6 @@ gen.add("l_temp_motor_start",	double_t,	0,	"Motor Temperature Limit Start",	80.0
 gen.add("l_temp_motor_end",	double_t,	0,	"Motor Temperature Limit End",		100.0,	-100.0,	300.0);
 gen.add("l_min_duty",		double_t,	0,	"Minimum duty cycle",			0.005,	0.005,	0.5);
 gen.add("l_max_duty",		double_t,	0,	"Maximum duty cycle",			0.95,	0.01,	0.95);
-gen.add("sl_is_sensorless",	bool_t,		0,	"BLDC is sensorless",	True);
 gen.add("sl_min_erpm",		double_t,	0,	"Sensorless minimum ERPM",	150.0,	0.0,	100000.0);
 gen.add("sl_min_erpm_cycle_int_limit",	double_t,	0,	"Sensorless minimum ERPM for integrator limit",	1100.0,	0.0,	10000.0);
 gen.add("sl_max_fullbreak_current_dir_change",	double_t,	0,	"Sensorless maximum full brake current during direction change",	10.0,	0.0,	300.0);
@@ -49,9 +54,15 @@ gen.add("sl_cycle_int_limit",	double_t,	0,	"Sensorless integrator limit",	62.0,	
 gen.add("sl_phase_advance_at_br",	double_t,	0,	"Sensorless phase advance at BR ERPM",	0.8,	0.0,	1.0);
 gen.add("sl_cycle_int_rpm_br",	double_t,	0,	"Sensorless BR ERPM",	80000.0,	0.0,	200000.0);
 gen.add("sl_bemf_coupling_k",	double_t,	0,	"Sensorless BEMF Coupling",	600.0,	0.0,	5000.0);
-gen.add("hall_dir",		int_t,		0,	"Hall sensor direction",	0,	0,	1);
-gen.add("hall_fwd_add",		int_t,		0,	"Hall sensor forward add",	0,	0,	5);
-gen.add("hall_rev_add",		int_t,		0,	"Hall sensor reverse add",	0,	0,	5);
+gen.add("hall_table_0",		int_t,		0,	"Hall sensor table value 0",	-1,	-1,	6);
+gen.add("hall_table_1",		int_t,		0,	"Hall sensor table value 1",	1,	-1,	6);
+gen.add("hall_table_2",		int_t,		0,	"Hall sensor table value 2",	3,	-1,	6);
+gen.add("hall_table_3",		int_t,		0,	"Hall sensor table value 3",	2,	-1,	6);
+gen.add("hall_table_4",		int_t,		0,	"Hall sensor table value 4",	5,	-1,	6);
+gen.add("hall_table_5",		int_t,		0,	"Hall sensor table value 5",	6,	-1,	6);
+gen.add("hall_table_6",		int_t,		0,	"Hall sensor table value 6",	4,	-1,	6);
+gen.add("hall_table_7",		int_t,		0,	"Hall sensor table value 7",	-1,	-1,	6);
+gen.add("hall_sl_erpm",		double_t,	0,	"Sensorless ERPM (hybrid mode)",	2000.0,	0.0,	200000.0);
 gen.add("s_pid_kp",		double_t,	0,	"Speed control KP",		0.0001,	0.0,	99.99);
 gen.add("s_pid_ki",		double_t,	0,	"Speed control KI",		0.002,	0.0,	99.99);
 gen.add("s_pid_kd",		double_t,	0,	"Speed control KD",		0.0,	0.0,	99.99);
