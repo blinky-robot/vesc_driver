@@ -238,7 +238,28 @@ namespace vesc_driver
 		ROS_INFO_NAMED(this_name, "Connected to controller at '%s'", port.c_str());
 	}
 
-	void VESC::setVelocity(double &velocity)
+	void VESC::setCurrent(const double current)
+	{
+		int ret;
+
+		if (!VESC::stat())
+		{
+			VESC::start();
+
+			if (!VESC::stat())
+			{
+				throw Exception(VESC_ERROR_NOT_CONNECTED);
+			}
+		}
+
+		ret = vesc_set_current(vescd, current * 1000.0 + 0.5);
+		if (ret != VESC_SUCCESS)
+		{
+			throw Exception((enum VESC_ERROR)ret);
+		}
+	}
+
+	void VESC::setVelocity(const double velocity)
 	{
 		int ret;
 

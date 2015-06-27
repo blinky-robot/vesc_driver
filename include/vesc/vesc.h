@@ -223,6 +223,7 @@ int vesc_set_cb_get_fw_version(const int vescd, int (*get_fw_version_cb)(void *c
 int vesc_set_cb_get_values(const int vescd, int (*get_values_cb)(void *context, struct vesc_values *values));
 int vesc_set_cb_set_config(const int vescd, int (*set_config_cb)(void *context));
 int vesc_set_config(const int vescd, const struct vesc_config *config);
+int vesc_set_current(const int vescd, int32_t current);
 int vesc_set_rpm(const int vescd, int32_t rpm);
 const char * vesc_strerror(const int error);
 const char * vesc_strfault(const enum VESC_FAULT_CODE fault);

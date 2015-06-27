@@ -606,6 +606,22 @@ int vesc_set_config(const int vescd, const struct vesc_config *config)
 	return vesc_write_pkt(vescd, buf, 1 + sizeof(struct vesc_config));
 }
 
+int vesc_set_current(const int vescd, int32_t current)
+{
+	uint8_t buf[5] = { VESC_PKT_COMM_SET_CURRENT };
+
+	if (vescd < 0 || vescd > VESC_MAX_DESCRIPTORS || vescds[vescd] == NULL)
+	{
+		return VESC_ERROR_INVALID_PARAM;
+	}
+
+	*((int32_t *)&buf[1]) = current;
+
+	VESC_ENDIAN_SWAP_32_ASSIGN(((int32_t *)&buf[1]));
+
+	return vesc_write_pkt(vescd, buf, 5);
+}
+
 int vesc_set_rpm(const int vescd, int32_t rpm)
 {
 	uint8_t buf[5] = { VESC_PKT_COMM_SET_RPM };
