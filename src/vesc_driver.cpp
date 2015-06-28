@@ -307,9 +307,9 @@ namespace vesc_driver
 
 				VESC::getFwVersion(major, minor);
 
-				if (major != 1 || minor != 5)
+				if (major < 1 || (major == 1 && minor < 5))
 				{
-					ROS_ERROR("This driver is not compatible with VESC firmware v%hhu.%hhu. Please load v1.5.", major, minor);
+					ROS_ERROR("This driver is not compatible with VESC firmware v%hhu.%hhu. Please load v1.5 or newer.", major, minor);
 
 					VESC::close();
 
