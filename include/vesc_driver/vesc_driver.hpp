@@ -62,9 +62,9 @@ namespace vesc_driver
 
 		static const int default_baud;
 		static const std::string default_port;
-		static const int default_timeout;
 
 	private:
+		void closeSilently();
 		static void configToDynRe(struct vesc_driver::VESCConfig &dyn_re_cfg, const struct vesc_config &vesc_cfg);
 		void diagTimerCallback(const ros::TimerEvent &event);
 		void dynReCallback(vesc_driver::VESCConfig &config, uint32_t level);
@@ -74,6 +74,7 @@ namespace vesc_driver
 		static inline double roundDouble(const double x);
 		void spin();
 		void spinOnce();
+		enum VESC_ERROR startIfNecessary();
 
 		friend int getConfigCallbackWrapper(void *context, struct vesc_config *config);
 		int getConfigCallback(struct vesc_config *config);
@@ -91,23 +92,30 @@ namespace vesc_driver
 		const dynamic_reconfigure::Server<vesc_driver::VESCConfig>::CallbackType dyn_re_cb;
 		boost::recursive_mutex dyn_re_mutex;
 		dynamic_reconfigure::Server<vesc_driver::VESCConfig> *dyn_re_srv;
-		boost::recursive_mutex io_mutex;
+		boost::upgrade_mutex io_mutex;
 		const ros::NodeHandle nh;
 		const ros::NodeHandle nh_priv;
 		std::string port;
 		double rad_per_tick;
+
 		uint8_t read_fw_version_major;
 		uint8_t read_fw_version_minor;
-		boost::timed_mutex read_fw_version_mutex;
+		boost::mutex read_fw_version_mutex;
+		boost::condition_variable read_fw_version_sig;
 		struct vesc_config read_config;
-		boost::timed_mutex read_config_mutex;
+		boost::mutex read_config_mutex;
+		boost::condition_variable read_config_sig;
 		boost::thread *read_thread;
 		struct vesc_values read_values;
-		boost::timed_mutex read_values_mutex;
+		boost::mutex read_values_mutex;
+		boost::condition_variable read_values_sig;
+
+		boost::recursive_timed_mutex state_mutex;
 		const std::string this_name;
 		int timeout;
 		int vescd;
-		boost::timed_mutex write_config_mutex;
+		boost::mutex write_config_mutex;
+		boost::condition_variable write_config_sig;
 	};
 }
 

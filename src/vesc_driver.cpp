@@ -32,7 +32,6 @@ namespace vesc_driver
 	 */
 	const int VESC::default_baud = (int)VESC_BAUD_115200;
 	const std::string VESC::default_port = "/dev/ttyACM0";
-	const int VESC::default_timeout = VESC_TIMEOUT_DEFAULT;
 
 	/**
 	 * Callback Wrappers
@@ -95,12 +94,13 @@ namespace vesc_driver
 		  rad_per_tick(1.047197551),
 		  read_thread(NULL),
 		  this_name("vesc_driver"),
+		  timeout(50),
 		  vescd(-1)
 	{
 		nh_priv.param("baud", baud, VESC::default_baud);
 		nh_priv.param("port", port, VESC::default_port);
 		nh_priv.param("rad_per_tick", rad_per_tick, rad_per_tick);
-		nh_priv.param("timeout", timeout, VESC::default_timeout);
+		nh_priv.param("timeout", timeout, timeout);
 
 		diag.setHardwareIDf("VESC on '%s'", port.c_str());
 		diag.add("VESC Status", this, &VESC::queryDiagnostics);
@@ -108,8 +108,11 @@ namespace vesc_driver
 
 	VESC::~VESC()
 	{
-		read_thread->interrupt();
-		delete read_thread;
+		if (read_thread != NULL)
+		{
+			read_thread->interrupt();
+			delete read_thread;
+		}
 
 		delete dyn_re_srv;
 
@@ -121,20 +124,20 @@ namespace vesc_driver
 
 	void VESC::close()
 	{
-		boost::recursive_mutex::scoped_lock lock(io_mutex);
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex);
 
 		if (read_thread != NULL)
 		{
 			read_thread->interrupt();
+			delete read_thread;
+			read_thread = NULL;
 		}
-		delete read_thread;
-		read_thread = NULL;
 
 		if (vescd >= 0)
 		{
 			vesc_close(vescd);
 			vescd = -1;
-			ROS_INFO_NAMED(this_name, "Disconnected from controller");
+			ROS_INFO_NAMED(this_name, "Closed port to controller");
 		}
 	}
 
@@ -142,75 +145,63 @@ namespace vesc_driver
 	{
 		int ret;
 
-		if (!VESC::stat())
-		{
-			VESC::start();
-
-			if (!VESC::stat())
-			{
-				throw Exception(VESC_ERROR_NOT_CONNECTED);
-			}
-		}
-
-		read_fw_version_mutex.lock();
-
-		ret = vesc_request_fw_version(vescd);
+		ret = VESC::startIfNecessary();
 		if (ret != VESC_SUCCESS)
 		{
-			read_fw_version_mutex.unlock();
 			throw Exception((enum VESC_ERROR)ret);
 		}
 
-		if (!read_fw_version_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		boost::mutex::scoped_lock lock(read_fw_version_mutex);
+
+		io_mutex.lock_upgrade();
+		ret = vesc_request_fw_version(vescd);
+		io_mutex.unlock_upgrade();
+		if (ret != VESC_SUCCESS)
 		{
-			read_fw_version_mutex.unlock();
+			throw Exception((enum VESC_ERROR)ret);
+		}
+
+		if (!read_fw_version_sig.timed_wait(lock, boost::posix_time::milliseconds(timeout)))
+		{
 			throw Exception(VESC_ERROR_TIMEOUT);
 		}
 
 		major = read_fw_version_major;
 		minor = read_fw_version_minor;
-
-		read_fw_version_mutex.unlock();
 	}
 
 	void VESC::getStatus(double &velocity, double &position)
 	{
 		int ret;
 
-		if (!VESC::stat())
-		{
-			VESC::start();
-
-			if (!VESC::stat())
-			{
-				throw Exception(VESC_ERROR_NOT_CONNECTED);
-			}
-		}
-
-		read_values_mutex.lock();
-
-		ret = vesc_request_values(vescd);
+		ret = VESC::startIfNecessary();
 		if (ret != VESC_SUCCESS)
 		{
-			read_values_mutex.unlock();
 			throw Exception((enum VESC_ERROR)ret);
 		}
 
-		if (!read_values_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		boost::mutex::scoped_lock lock(read_values_mutex);
+
+		io_mutex.lock_upgrade();
+		ret = vesc_request_values(vescd);
+		io_mutex.unlock_upgrade();
+		if (ret != VESC_SUCCESS)
 		{
-			read_values_mutex.unlock();
+			throw Exception((enum VESC_ERROR)ret);
+		}
+
+		if (!read_values_sig.timed_wait(lock, boost::posix_time::milliseconds(timeout)))
+		{
 			throw Exception(VESC_ERROR_TIMEOUT);
 		}
 
 		position = rad_per_tick * read_values.tachometer;
 		velocity = read_values.rpm * M_PI * 2.0 / 60.0;
-
-		read_values_mutex.unlock();
 	}
 
 	void VESC::open()
 	{
-		boost::recursive_mutex::scoped_lock lock(io_mutex);
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex);
 
 		if (VESC::stat())
 		{
@@ -218,10 +209,10 @@ namespace vesc_driver
 			return;
 		}
 
-		vescd = vesc_open(port.c_str(), (enum VESC_BAUD)baud, (uint8_t)timeout);
+		vescd = vesc_open(port.c_str(), (enum VESC_BAUD)baud, 1);
 		if (vescd < 0)
 		{
-			ROS_WARN_THROTTLE_NAMED(1, this_name, "Attempt to open device '%s' failed: %s", port.c_str(), vesc_strerror(vescd));
+			ROS_ERROR_THROTTLE_NAMED(1, this_name, "Attempt to open device '%s' failed: %s", port.c_str(), vesc_strerror(vescd));
 			return;
 		}
 
@@ -235,24 +226,23 @@ namespace vesc_driver
 		{
 			read_thread = new boost::thread(&VESC::spin, this);
 		}
-		ROS_INFO_NAMED(this_name, "Connected to controller at '%s'", port.c_str());
+
+		ROS_DEBUG_NAMED(this_name, "Opened port controller at '%s'", port.c_str());
 	}
 
 	void VESC::setCurrent(const double current)
 	{
 		int ret;
 
-		if (!VESC::stat())
+		ret = VESC::startIfNecessary();
+		if (ret != VESC_SUCCESS)
 		{
-			VESC::start();
-
-			if (!VESC::stat())
-			{
-				throw Exception(VESC_ERROR_NOT_CONNECTED);
-			}
+			throw Exception((enum VESC_ERROR)ret);
 		}
 
+		io_mutex.lock_upgrade();
 		ret = vesc_set_current(vescd, current * 1000.0 + 0.5);
+		io_mutex.unlock_upgrade();
 		if (ret != VESC_SUCCESS)
 		{
 			throw Exception((enum VESC_ERROR)ret);
@@ -263,17 +253,15 @@ namespace vesc_driver
 	{
 		int ret;
 
-		if (!VESC::stat())
+		ret =  VESC::startIfNecessary();
+		if (ret != VESC_SUCCESS)
 		{
-			VESC::start();
-
-			if (!VESC::stat())
-			{
-				throw Exception(VESC_ERROR_NOT_CONNECTED);
-			}
+			throw Exception((enum VESC_ERROR)ret);
 		}
 
+		io_mutex.lock_upgrade();
 		ret = vesc_set_rpm(vescd, (velocity * 60.0 / (2.0 * M_PI)) + 0.5);
+		io_mutex.unlock_upgrade();
 		if (ret != VESC_SUCCESS)
 		{
 			throw Exception((enum VESC_ERROR)ret);
@@ -282,14 +270,14 @@ namespace vesc_driver
 
 	bool VESC::stat()
 	{
-		boost::recursive_mutex::scoped_lock lock(io_mutex);
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex);
 
 		return (vescd < 0) ? false : true;
 	}
 
 	void VESC::start()
 	{
-		boost::recursive_mutex::scoped_lock lock(io_mutex);
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex);
 
 		if (!VESC::stat())
 		{
@@ -322,27 +310,33 @@ namespace vesc_driver
 				{
 					dyn_re_srv = new dynamic_reconfigure::Server<vesc_driver::VESCConfig>(dyn_re_mutex, nh_priv);
 				}
+
 				dyn_re_srv->setCallback(dyn_re_cb);
+
+				ROS_INFO_NAMED(this_name, "Connected to controller at '%s'", port.c_str());
 			}
 			catch (Exception &e)
 			{
-				ROS_ERROR_NAMED(this_name, "Communication failure: %s", e.what());
+				ROS_ERROR_NAMED(this_name, "Communication failure during startup: %s", e.what());
 
 				if (dyn_re_srv != NULL)
 				{
 					dyn_re_srv->clearCallback();
 				}
 
-				VESC::close();
+				VESC::closeSilently();
 			}
 		}
 	}
 
 	void VESC::stop()
 	{
-		boost::recursive_mutex::scoped_lock lock(io_mutex);
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex);
 
-		dyn_re_srv->clearCallback();
+		if (dyn_re_srv != NULL)
+		{
+			dyn_re_srv->clearCallback();
+		}
 
 		diag_timer.stop();
 	}
@@ -350,6 +344,24 @@ namespace vesc_driver
 	/**
 	 * Private Functions
 	 */
+	void VESC::closeSilently()
+	{
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex);
+
+		if (read_thread != NULL)
+		{
+			read_thread->interrupt();
+			delete read_thread;
+			read_thread = NULL;
+		}
+
+		if (vescd >= 0)
+		{
+			vesc_close(vescd);
+			vescd = -1;
+		}
+	}
+
 	void VESC::configToDynRe(struct vesc_driver::VESCConfig &dyn_re_cfg, const struct vesc_config &vesc_cfg)
 	{
 		dyn_re_cfg.pwm_mode = vesc_cfg.pwm_mode;
@@ -409,14 +421,31 @@ namespace vesc_driver
 	{
 		try
 		{
-			diag.update();
+			int ret;
+
+			ret = VESC::startIfNecessary();
+			if (ret != VESC_SUCCESS)
+			{
+				throw Exception((enum VESC_ERROR)ret);
+			}
+
+			// We do our own rate limiting
+			diag.force_update();
 		}
 		catch(Exception &e)
 		{
-			ROS_ERROR_NAMED(this_name, "Communication error: %s", e.what());
-			if (e.vesc_error != VESC_ERROR_TIMEOUT && e.vesc_error != VESC_ERROR_CHECKSUM_FAILURE)
+			if (e.vesc_error != VESC_ERROR_NOT_CONNECTED)
 			{
-				VESC::close();
+				if (e.vesc_error != VESC_ERROR_TIMEOUT && e.vesc_error != VESC_ERROR_CHECKSUM_FAILURE && e.vesc_error != VESC_ERROR_BUSY)
+				{
+					ROS_ERROR_THROTTLE_NAMED(1, this_name, "Communication error while querying diagnostics: %s", e.what());
+
+					VESC::close();
+				}
+				else
+				{
+					ROS_WARN_THROTTLE_NAMED(1, this_name, "Communication error while querying diagnostics: %s", e.what());
+				}
 			}
 		}
 	}
@@ -427,7 +456,7 @@ namespace vesc_driver
 
 		ROS_DEBUG_NAMED(this_name, "Dynamic Reconfigure Callback");
 
-		boost::timed_mutex::scoped_lock lock(read_config_mutex);
+		boost::mutex::scoped_lock cfg_lock(read_config_mutex);
 
 		read_config.pwm_mode = config.pwm_mode;
 		read_config.comm_mode = config.comm_mode;
@@ -481,27 +510,27 @@ namespace vesc_driver
 		read_config.cc_ramp_step_max = roundDouble(config.cc_ramp_step_max * 1000000.0);
 		read_config.m_fault_stop_time_ms = config.m_fault_stop_time_ms;
 
+		cfg_lock.unlock();
+
 		// Write the config back so the precision matches
 		configToDynRe(config, read_config);
 
-		write_config_mutex.lock();
+		boost::mutex::scoped_lock lock(write_config_mutex);
 
+		io_mutex.lock_upgrade();
 		ret = vesc_set_config(vescd, &read_config);
+		io_mutex.unlock_upgrade();
 		if (ret != VESC_SUCCESS)
 		{
-			write_config_mutex.unlock();
 			ROS_ERROR_NAMED(this_name, "Failed to update VESC configuration: %s", vesc_strerror(ret));
 			return;
 		}
 
-		if (!write_config_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		if (!write_config_sig.timed_wait(lock, boost::posix_time::milliseconds(timeout)))
 		{
-			write_config_mutex.unlock();
 			ROS_ERROR_NAMED(this_name, "Timeout updating VESC configuration");
 			return;
 		}
-
-		write_config_mutex.unlock();
 
 		ROS_DEBUG_NAMED(this_name, "Configuration written successfully");
 	}
@@ -511,24 +540,22 @@ namespace vesc_driver
 		vesc_driver::VESCConfig cfg;
 		int ret;
 
-		read_config_mutex.lock();
+		boost::mutex::scoped_lock lock(read_config_mutex);
 
+		io_mutex.lock_upgrade();
 		ret = vesc_request_config(vescd);
+		io_mutex.unlock_upgrade();
 		if (ret != VESC_SUCCESS)
 		{
-			read_config_mutex.unlock();
 			throw Exception((enum VESC_ERROR)ret);
 		}
 
-		if (!read_config_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
+		if (!read_config_sig.timed_wait(lock, boost::posix_time::milliseconds(timeout)))
 		{
-			read_config_mutex.unlock();
 			throw Exception(VESC_ERROR_TIMEOUT);
 		}
 
 		configToDynRe(cfg, read_config);
-
-		read_config_mutex.unlock();
 
 		return cfg;
 	}
@@ -559,46 +586,24 @@ namespace vesc_driver
 
 	void VESC::queryDiagnostics(diagnostic_updater::DiagnosticStatusWrapper &stat)
 	{
-		if (!VESC::stat())
-		{
-			VESC::start();
-		}
-
 		if (VESC::stat())
 		{
 			int ret;
 
 			ROS_DEBUG_NAMED(this_name, "Getting diagnostics");
 
-			read_values_mutex.lock();
+			boost::mutex::scoped_lock values_lock(read_values_mutex);
 
+			io_mutex.lock_upgrade();
 			ret = vesc_request_values(vescd);
+			io_mutex.unlock_upgrade();
 			if (ret != VESC_SUCCESS)
 			{
-				read_values_mutex.unlock();
 				throw Exception((enum VESC_ERROR)ret);
 			}
 
-			read_fw_version_mutex.lock();
-
-			ret = vesc_request_fw_version(vescd);
-			if (ret != VESC_SUCCESS)
+			if (!read_values_sig.timed_wait(values_lock, boost::posix_time::milliseconds(timeout)))
 			{
-				read_values_mutex.unlock();
-				read_fw_version_mutex.unlock();
-				throw Exception((enum VESC_ERROR)ret);
-			}
-
-			if (!read_values_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
-			{
-				read_values_mutex.unlock();
-				read_fw_version_mutex.unlock();
-				throw Exception(VESC_ERROR_TIMEOUT);
-			}
-
-			if (!read_fw_version_mutex.timed_lock(boost::posix_time::milliseconds(timeout * 100)))
-			{
-				read_fw_version_mutex.unlock();
 				throw Exception(VESC_ERROR_TIMEOUT);
 			}
 
@@ -621,6 +626,9 @@ namespace vesc_driver
 			stat.add("Tachometer Value", read_values.tachometer);
 			stat.add("Tachometer Absolute Value", read_values.tachometer_abs);
 			stat.addf("Fault Code", "%s (%d)", vesc_strfault((enum VESC_FAULT_CODE)read_values.fault_code), (int)read_values.fault_code);
+
+			boost::mutex::scoped_lock fw_version_lock(read_fw_version_mutex);
+
 			stat.addf("Firmware Version", "%hhu.%hhu", read_fw_version_major, read_fw_version_minor);
 
 			if (read_values.fault_code == VESC_FAULT_CODE_NONE)
@@ -631,11 +639,6 @@ namespace vesc_driver
 			{
 				stat.summary(diagnostic_msgs::DiagnosticStatus::ERROR, "VESC is reporting fault(s)");
 			}
-
-			read_fw_version_mutex.unlock();
-			read_values_mutex.unlock();
-
-			diag_timer.setPeriod(ros::Duration(1.0));
 		}
 		else
 		{
@@ -661,50 +664,85 @@ namespace vesc_driver
 	{
 		int ret;
 
+		io_mutex.lock_shared();
 		ret = vesc_process(vescd);
+		io_mutex.unlock_shared();
 		if (ret != VESC_SUCCESS && ret != VESC_ERROR_TIMEOUT)
 		{
 			ROS_ERROR_NAMED(this_name, "Failed to read data from VESC: %s", vesc_strerror(ret));
 
 			if (ret != VESC_ERROR_CHECKSUM_FAILURE)
 			{
-				boost::recursive_mutex::scoped_lock lock(io_mutex);
 				VESC::close();
 			}
 		}
 	}
 
+	enum VESC_ERROR VESC::startIfNecessary()
+	{
+		boost::recursive_timed_mutex::scoped_lock lock(state_mutex, boost::posix_time::milliseconds(timeout));
+
+		if (!lock)
+		{
+			return VESC_ERROR_BUSY;
+		}
+
+		if (!VESC::stat())
+		{
+			VESC::start();
+
+			if (!VESC::stat())
+			{
+				return VESC_ERROR_NOT_CONNECTED;
+			}
+		}
+
+		return VESC_SUCCESS;
+	}
+
 	int VESC::getConfigCallback(struct vesc_config *config)
 	{
+		boost::mutex::scoped_lock lock(read_config_mutex);
+
 		read_config = *config;
 
-		read_config_mutex.unlock();
+		lock.unlock();
+
+		read_config_sig.notify_all();
 
 		return VESC_SUCCESS;
 	}
 
 	int VESC::getFwVersionCallback(uint8_t major, uint8_t minor)
 	{
+		boost::mutex::scoped_lock lock(read_fw_version_mutex);
+
 		read_fw_version_major = major;
 		read_fw_version_minor = minor;
 
-		read_fw_version_mutex.unlock();
+		lock.unlock();
+
+		read_fw_version_sig.notify_all();
 
 		return VESC_SUCCESS;
 	}
 
 	int VESC::getValuesCallback(struct vesc_values *values)
 	{
+		boost::mutex::scoped_lock lock(read_values_mutex);
+
 		read_values = *values;
 
-		read_values_mutex.unlock();
+		lock.unlock();
+
+		read_values_sig.notify_all();
 
 		return VESC_SUCCESS;
 	}
 
 	int VESC::setConfigCallback()
 	{
-		write_config_mutex.unlock();
+		write_config_sig.notify_all();
 
 		return VESC_SUCCESS;
 	}

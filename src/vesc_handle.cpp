@@ -66,7 +66,19 @@ namespace vesc_driver
 		}
 		catch(vesc_driver::Exception &e)
 		{
-			ROS_WARN_NAMED(this_name, "Failed to read state of ESC: %s", e.what());
+			if (e.vesc_error != VESC_ERROR_NOT_CONNECTED)
+			{
+				if (e.vesc_error != VESC_ERROR_TIMEOUT && e.vesc_error != VESC_ERROR_CHECKSUM_FAILURE && e.vesc_error != VESC_ERROR_BUSY)
+				{
+					ROS_ERROR_THROTTLE_NAMED(1, this_name, "Failed to read state of ESC: %s", e.what());
+
+					vesc.close();
+				}
+				else
+				{
+					ROS_WARN_THROTTLE_NAMED(1, this_name, "Failed to read state of ESC: %s", e.what());
+				}
+			}
 		}
 	}
 
@@ -89,7 +101,19 @@ namespace vesc_driver
 		}
 		catch(vesc_driver::Exception &e)
 		{
-			ROS_WARN_NAMED(this_name, "Failed to command ESC: %s", e.what());
+			if (e.vesc_error != VESC_ERROR_NOT_CONNECTED)
+			{
+				if (e.vesc_error != VESC_ERROR_TIMEOUT && e.vesc_error != VESC_ERROR_CHECKSUM_FAILURE && e.vesc_error != VESC_ERROR_BUSY)
+				{
+					ROS_ERROR_THROTTLE_NAMED(1, this_name, "Failed to command ESC: %s", e.what());
+
+					vesc.close();
+				}
+				else
+				{
+					ROS_WARN_THROTTLE_NAMED(1, this_name, "Failed to command ESC: %s", e.what());
+				}
+			}
 		}
 	}
 
